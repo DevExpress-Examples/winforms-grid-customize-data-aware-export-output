@@ -1,3 +1,8 @@
+<!-- default file list -->
+*Files to look at*:
+
+* [Form1.cs](./CS/GridDataAwareExportCustomization/Form1.cs) (VB: [Form1.vb](./VB/GridDataAwareExportCustomization/Form1.vb))
+<!-- default file list end -->
 # How to: Customize the GridControl's Data-Aware Export Output
 
 
