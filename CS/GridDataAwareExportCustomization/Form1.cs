@@ -10,23 +10,29 @@ using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
 using DevExpress.XtraGrid.Views.Base;
+using DevExpress.XtraGrid.Views.Grid;
+using System.Reflection;
+using System.Data.OleDb;
 
-namespace GridDataAwareExportCustomization{
-    public partial class Form1 : XtraForm{
-        
+namespace GridDataAwareExportCustomization {
+    public partial class Form1 : XtraForm {
+
         readonly string tblGrid = "Products";
         const string tblLookUp = "Categories";
 
-        public Form1(){
+        public Form1() {
             InitializeComponent();
             InitNWindData();
             gridView1.ExpandAllGroups();
         }
 
-        void gridView1_CustomUnboundColumnData(object sender, CustomColumnDataEventArgs e){
-            if (e.Column == categoryName)
-                if (e.IsGetData)
-                    e.Value = nwindDataSet.Categories.FindByCategoryID((int)(gridView1.GetRowCellValue(gridView1.GetRowHandle(e.ListSourceRowIndex), colCategoryID))).CategoryName;
+        void gridView1_CustomUnboundColumnData(object sender, CustomColumnDataEventArgs e) {
+            GridView view = sender as GridView;
+            if(e.Column == categoryName)
+                if(e.IsGetData) {
+                    int id = (int)view.GetListSourceRowCellValue(e.ListSourceRowIndex, colCategoryID);
+                    e.Value = nwindDataSet.Categories.FindByCategoryID(id).CategoryName;
+                }
         }
 
         private void btn_Export_Click(object sender, EventArgs e) {
@@ -53,8 +59,8 @@ namespace GridDataAwareExportCustomization{
         #region #AfterAddRowEvent
         void options_AfterAddRow(AfterAddRowEventArgs e) {
             // Merge cells in rows that correspond to the grid's group rows.
-            if (e.DataSourceRowIndex < 0) {
-                e.ExportContext.MergeCells(new XlCellRange(new XlCellPosition(0, e.DocumentRow-1), new XlCellPosition(5, e.DocumentRow-1)));
+            if(e.DataSourceRowIndex < 0) {
+                e.ExportContext.MergeCells(new XlCellRange(new XlCellPosition(0, e.DocumentRow - 1), new XlCellPosition(5, e.DocumentRow - 1)));
             }
         }
         #endregion #AfterAddRowEvent
@@ -66,13 +72,13 @@ namespace GridDataAwareExportCustomization{
             VerticalAlignment = XlVerticalAlignment.Center
         };
 
-        void options_CustomizeCell(CustomizeCellEventArgs e){
+        void options_CustomizeCell(CustomizeCellEventArgs e) {
             // Substitute Boolean values within the Discontinued column by special symbols.
-            if(e.ColumnFieldName == "Discontinued"){
-                if(e.Value is bool){
+            if(e.ColumnFieldName == "Discontinued") {
+                if(e.Value is bool) {
                     e.Handled = true;
                     e.Formatting.Alignment = aligmentForDiscontinuedColumn;
-                    e.Value = ((bool) e.Value) ? "☑" : "☐";
+                    e.Value = ((bool)e.Value) ? "☑" : "☐";
                 }
             }
         }
@@ -82,8 +88,8 @@ namespace GridDataAwareExportCustomization{
         delegate void AddCells(ContextEventArgs e, XlFormattingObject formatFirstCell, XlFormattingObject formatSecondCell);
 
         Dictionary<int, AddCells> methods = CreateMethodSet();
-        
-        static Dictionary<int, AddCells> CreateMethodSet(){
+
+        static Dictionary<int, AddCells> CreateMethodSet() {
             var dictionary = new Dictionary<int, AddCells>();
             dictionary.Add(9, AddAddressRow);
             dictionary.Add(10, AddAddressLocationCityRow);
@@ -92,12 +98,13 @@ namespace GridDataAwareExportCustomization{
             dictionary.Add(13, AddEmailRow);
             return dictionary;
         }
-        void options_CustomizeSheetHeader(ContextEventArgs e){
+        Bitmap imageToHeader;
+        void options_CustomizeSheetHeader(ContextEventArgs e) {
             // Specify cell formatting. 
             var formatFirstCell = CreateXlFormattingObject(true, 24);
             var formatSecondCell = CreateXlFormattingObject(true, 18);
             // Add new rows displaying custom information. 
-            for(var i = 0; i < 15; i++){
+            for(var i = 0; i < 15; i++) {
                 AddCells addCellMethod;
                 if(methods.TryGetValue(i, out addCellMethod))
                     addCellMethod(e, formatFirstCell, formatSecondCell);
@@ -106,54 +113,55 @@ namespace GridDataAwareExportCustomization{
             // Merge specific cells.
             MergeCells(e);
             // Add an image to the top of the document.
-            var file = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("GridDataAwareExportCustomization.Resources.1.jpg");
-            if(file != null){
-                var imageToHeader = new Bitmap(Image.FromStream(file));
-                var imageToHeaderRange = new XlCellRange(new XlCellPosition(0, 0), new XlCellPosition(5, 7));
-                e.ExportContext.MergeCells(imageToHeaderRange);
-                e.ExportContext.InsertImage(imageToHeader, imageToHeaderRange);
+            if(imageToHeader == null) {
+                using(var fileStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("GridDataAwareExportCustomization.Resources.1.jpg"))
+                    if(fileStream != null)
+                        imageToHeader = new Bitmap(Image.FromStream(fileStream));
             }
-            e.ExportContext.MergeCells(new XlCellRange(new XlCellPosition(0, 8), new XlCellPosition(5, 8)));           
+            var imageToHeaderRange = new XlCellRange(new XlCellPosition(0, 0), new XlCellPosition(5, 7));
+            e.ExportContext.MergeCells(imageToHeaderRange);
+            e.ExportContext.InsertImage(imageToHeader, imageToHeaderRange);
+            e.ExportContext.MergeCells(new XlCellRange(new XlCellPosition(0, 8), new XlCellPosition(5, 8)));
         }
 
         static void AddEmailRow(ContextEventArgs e, XlFormattingObject formatFirstCell,
-            XlFormattingObject formatSecondCell){
+            XlFormattingObject formatSecondCell) {
             var emailCellName = CreateCell("Email :", formatFirstCell);
             var emailCellLocation = CreateCell("corpsales@devav.com", formatSecondCell);
             emailCellLocation.Hyperlink = "corpsales@devav.com";
-            e.ExportContext.AddRow(new[]{ emailCellName, null, emailCellLocation });
+            e.ExportContext.AddRow(new[] { emailCellName, null, emailCellLocation });
         }
         static void AddFaxRow(ContextEventArgs e, XlFormattingObject formatFirstCell,
-            XlFormattingObject formatSecondCell){
+            XlFormattingObject formatSecondCell) {
             var faxCellName = CreateCell("Fax :", formatFirstCell);
             var faxCellLocation = CreateCell("+ 1 (213) 555-1824", formatSecondCell);
-            e.ExportContext.AddRow(new[]{ faxCellName, null, faxCellLocation });
+            e.ExportContext.AddRow(new[] { faxCellName, null, faxCellLocation });
         }
         static void AddPhoneRow(ContextEventArgs e, XlFormattingObject formatFirstCell,
-            XlFormattingObject formatSecondCell){
+            XlFormattingObject formatSecondCell) {
             var phoneCellName = CreateCell("Phone :", formatFirstCell);
             var phoneCellLocation = CreateCell("+ 1 (213) 555-2828", formatSecondCell);
-            e.ExportContext.AddRow(new[]{ phoneCellName, null, phoneCellLocation });
+            e.ExportContext.AddRow(new[] { phoneCellName, null, phoneCellLocation });
         }
         static void AddAddressLocationCityRow(ContextEventArgs e, XlFormattingObject formatFirstCell,
-            XlFormattingObject formatSecondCell){
+            XlFormattingObject formatSecondCell) {
             var AddressLocationCityCell = CreateCell("Los Angeles CA 90731 USA", formatSecondCell);
-            e.ExportContext.AddRow(new[]{ null, null, AddressLocationCityCell });
+            e.ExportContext.AddRow(new[] { null, null, AddressLocationCityCell });
         }
         static void AddAddressRow(ContextEventArgs e, XlFormattingObject formatFirstCell,
-            XlFormattingObject formatSecondCell){
+            XlFormattingObject formatSecondCell) {
             var AddressCellName = CreateCell("Address: ", formatFirstCell);
             var AddresssCellLocation = CreateCell("807 West Paseo Del Mar", formatSecondCell);
-            e.ExportContext.AddRow(new[]{ AddressCellName, null, AddresssCellLocation });
+            e.ExportContext.AddRow(new[] { AddressCellName, null, AddresssCellLocation });
         }
 
         // Create a new cell with a specified value and format settings.
-        static CellObject CreateCell(object value, XlFormattingObject formatCell){
-            return new CellObject{ Value = value, Formatting = formatCell };
+        static CellObject CreateCell(object value, XlFormattingObject formatCell) {
+            return new CellObject { Value = value, Formatting = formatCell };
         }
 
         // Merge specific cells.
-        static void MergeCells(ContextEventArgs e){
+        static void MergeCells(ContextEventArgs e) {
             MergeCells(e, 2, 9, 5, 9);
             MergeCells(e, 0, 9, 1, 10);
             MergeCells(e, 2, 10, 5, 10);
@@ -165,18 +173,18 @@ namespace GridDataAwareExportCustomization{
             MergeCells(e, 2, 13, 5, 13);
             MergeCells(e, 0, 14, 5, 14);
         }
-        static void MergeCells(ContextEventArgs e, int left, int top, int right, int bottom){
+        static void MergeCells(ContextEventArgs e, int left, int top, int right, int bottom) {
             e.ExportContext.MergeCells(new XlCellRange(new XlCellPosition(left, top), new XlCellPosition(right, bottom)));
         }
 
         // Specify a cell's alignment and font settings. 
-        static XlFormattingObject CreateXlFormattingObject(bool bold, double size){
-            var cellFormat = new XlFormattingObject{
-                Font = new XlCellFont{
+        static XlFormattingObject CreateXlFormattingObject(bool bold, double size) {
+            var cellFormat = new XlFormattingObject {
+                Font = new XlCellFont {
                     Bold = bold,
                     Size = size
                 },
-                Alignment = new XlCellAlignment{
+                Alignment = new XlCellAlignment {
                     RelativeIndent = 10,
                     HorizontalAlignment = XlHorizontalAlignment.Center,
                     VerticalAlignment = XlVerticalAlignment.Center
@@ -187,7 +195,7 @@ namespace GridDataAwareExportCustomization{
         #endregion #CustomizeSheetHeaderEvent
 
         #region #CustomizeSheetFooterEvent
-        void options_CustomizeSheetFooter(ContextEventArgs e){
+        void options_CustomizeSheetFooter(ContextEventArgs e) {
             // Add an empty row to the document's footer.
             e.ExportContext.AddRow();
 
@@ -200,7 +208,7 @@ namespace GridDataAwareExportCustomization{
             rowFormatting.Alignment.HorizontalAlignment = XlHorizontalAlignment.Left;
             firstRow.Formatting = rowFormatting;
             // Add the created row to the output document. 
-            e.ExportContext.AddRow(new[]{ firstRow });
+            e.ExportContext.AddRow(new[] { firstRow });
 
             // Create one more row.
             var secondRow = new CellObject();
@@ -209,10 +217,10 @@ namespace GridDataAwareExportCustomization{
             // Change the row's font settings.
             rowFormatting.Font.Size = 14;
             rowFormatting.Font.Bold = false;
-            rowFormatting.Font.Italic = true;  
+            rowFormatting.Font.Italic = true;
             secondRow.Formatting = rowFormatting;
             // Add this row to the output document.
-            e.ExportContext.AddRow(new[]{ secondRow });
+            e.ExportContext.AddRow(new[] { secondRow });
         }
         #endregion #CustomizeSheetFooterEvent
 
@@ -226,24 +234,24 @@ namespace GridDataAwareExportCustomization{
         }
         #endregion #CustomizeSheetSettingsEvent
 
-        void InitMDBData(string connectionString){
-            var oleDBAdapter1 = new System.Data.OleDb.OleDbDataAdapter("SELECT * FROM " + tblGrid, connectionString);
-            var oleDBAdapter2 = new System.Data.OleDb.OleDbDataAdapter("SELECT * FROM " + tblLookUp, connectionString);
-            oleDBAdapter1.Fill(nwindDataSet.Products);
-            oleDBAdapter2.Fill(nwindDataSet.Categories);
+        void InitMDBData(string connectionString) {
+            using(var oleDBAdapter1 = new OleDbDataAdapter("SELECT * FROM " + tblGrid, connectionString))
+                oleDBAdapter1.Fill(nwindDataSet.Products);
+            using(var oleDBAdapter2 = new OleDbDataAdapter("SELECT * FROM " + tblLookUp, connectionString))
+                oleDBAdapter2.Fill(nwindDataSet.Categories);
         }
 
-        void InitNWindData(){
+        void InitNWindData() {
             var dbFileName = string.Empty;
             dbFileName = DevExpress.Utils.FilesHelper.FindingFileName(Application.StartupPath, "nwind.mdb");
-            if(dbFileName != string.Empty){
+            if(dbFileName != string.Empty) {
                 InitMDBData("Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + dbFileName);
             }
         }
 
-        void Form1_Load(object sender, EventArgs e){
+        void Form1_Load(object sender, EventArgs e) {
             gridView1.BestFitColumns(true);
         }
-       
+
     }
 }
