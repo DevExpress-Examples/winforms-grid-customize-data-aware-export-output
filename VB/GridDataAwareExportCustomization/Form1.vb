@@ -10,9 +10,6 @@ Imports System.Drawing
 Imports System.Threading
 Imports System.Windows.Forms
 Imports DevExpress.XtraGrid.Views.Base
-Imports System.Data.OleDb
-Imports DevExpress.XtraGrid.Views.Grid
-Imports System.Reflection
 
 Namespace GridDataAwareExportCustomization
     Partial Public Class Form1
@@ -28,14 +25,11 @@ Namespace GridDataAwareExportCustomization
         End Sub
 
         Private Sub gridView1_CustomUnboundColumnData(ByVal sender As Object, ByVal e As CustomColumnDataEventArgs) Handles gridView1.CustomUnboundColumnData
-            Dim view As GridView = TryCast(sender, GridView)
             If e.Column Is categoryName Then
                 If e.IsGetData Then
-                    Dim id As Integer = CInt(view.GetListSourceRowCellValue(e.ListSourceRowIndex, colCategoryID))
-                    e.Value = nwindDataSet.Categories.FindByCategoryID(id).CategoryName
+                    e.Value = nwindDataSet.Categories.FindByCategoryID(CInt((gridView1.GetRowCellValue(gridView1.GetRowHandle(e.ListSourceRowIndex), colCategoryID)))).CategoryName
                 End If
             End If
-
         End Sub
 
         Private Sub btn_Export_Click(ByVal sender As Object, ByVal e As EventArgs) Handles btn_Export.Click
@@ -59,16 +53,16 @@ Namespace GridDataAwareExportCustomization
             Process.Start("grid-export.xlsx")
         End Sub
 
-#Region "#AfterAddRowEvent"
+        #Region "#AfterAddRowEvent"
         Private Sub options_AfterAddRow(ByVal e As AfterAddRowEventArgs)
             ' Merge cells in rows that correspond to the grid's group rows.
             If e.DataSourceRowIndex < 0 Then
-                e.ExportContext.MergeCells(New XlCellRange(New XlCellPosition(0, e.DocumentRow - 1), New XlCellPosition(5, e.DocumentRow - 1)))
+                e.ExportContext.MergeCells(New XlCellRange(New XlCellPosition(0, e.DocumentRow-1), New XlCellPosition(5, e.DocumentRow-1)))
             End If
         End Sub
-#End Region ' #AfterAddRowEvent
+        #End Region ' #AfterAddRowEvent
 
-#Region "#CustomizeCellEvent"
+        #Region "#CustomizeCellEvent"
         ' Specify the value alignment for Discontinued field.
         Private aligmentForDiscontinuedColumn As New XlCellAlignment() With {.HorizontalAlignment = XlHorizontalAlignment.Center, .VerticalAlignment = XlVerticalAlignment.Center}
 
@@ -82,9 +76,9 @@ Namespace GridDataAwareExportCustomization
                 End If
             End If
         End Sub
-#End Region ' #CustomizeCellEvent
+        #End Region ' #CustomizeCellEvent
 
-#Region "#CustomizeSheetHeaderEvent"
+        #Region "#CustomizeSheetHeaderEvent"
         Private Delegate Sub AddCells(ByVal e As ContextEventArgs, ByVal formatFirstCell As XlFormattingObject, ByVal formatSecondCell As XlFormattingObject)
 
         Private methods As Dictionary(Of Integer, AddCells) = CreateMethodSet()
@@ -98,7 +92,6 @@ Namespace GridDataAwareExportCustomization
             dictionary.Add(13, AddressOf AddEmailRow)
             Return dictionary
         End Function
-        Dim imageToHeader As Image
         Private Sub options_CustomizeSheetHeader(ByVal e As ContextEventArgs)
             ' Specify cell formatting. 
             Dim formatFirstCell = CreateXlFormattingObject(True, 24)
@@ -115,44 +108,40 @@ Namespace GridDataAwareExportCustomization
             ' Merge specific cells.
             MergeCells(e)
             ' Add an image to the top of the document.
-            If imageToHeader Is Nothing Then
-                Using fileStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("1.jpg")
-                    If fileStream IsNot Nothing Then
-                        imageToHeader = New Bitmap(Image.FromStream(fileStream))
-                    End If
-                End Using
+            Dim file = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("Resources.1.jpg")
+            If file IsNot Nothing Then
+                Dim imageToHeader = New Bitmap(Image.FromStream(file))
+                Dim imageToHeaderRange = New XlCellRange(New XlCellPosition(0, 0), New XlCellPosition(5, 7))
+                e.ExportContext.MergeCells(imageToHeaderRange)
+                e.ExportContext.InsertImage(imageToHeader, imageToHeaderRange)
             End If
-            Dim imageToHeaderRange = New XlCellRange(New XlCellPosition(0, 0), New XlCellPosition(5, 7))
-            e.ExportContext.MergeCells(imageToHeaderRange)
-            e.ExportContext.InsertImage(imageToHeader, imageToHeaderRange)
             e.ExportContext.MergeCells(New XlCellRange(New XlCellPosition(0, 8), New XlCellPosition(5, 8)))
-
         End Sub
 
         Private Shared Sub AddEmailRow(ByVal e As ContextEventArgs, ByVal formatFirstCell As XlFormattingObject, ByVal formatSecondCell As XlFormattingObject)
             Dim emailCellName = CreateCell("Email :", formatFirstCell)
             Dim emailCellLocation = CreateCell("corpsales@devav.com", formatSecondCell)
             emailCellLocation.Hyperlink = "corpsales@devav.com"
-            e.ExportContext.AddRow({emailCellName, Nothing, emailCellLocation})
+            e.ExportContext.AddRow({ emailCellName, Nothing, emailCellLocation })
         End Sub
         Private Shared Sub AddFaxRow(ByVal e As ContextEventArgs, ByVal formatFirstCell As XlFormattingObject, ByVal formatSecondCell As XlFormattingObject)
             Dim faxCellName = CreateCell("Fax :", formatFirstCell)
             Dim faxCellLocation = CreateCell("+ 1 (213) 555-1824", formatSecondCell)
-            e.ExportContext.AddRow({faxCellName, Nothing, faxCellLocation})
+            e.ExportContext.AddRow({ faxCellName, Nothing, faxCellLocation })
         End Sub
         Private Shared Sub AddPhoneRow(ByVal e As ContextEventArgs, ByVal formatFirstCell As XlFormattingObject, ByVal formatSecondCell As XlFormattingObject)
             Dim phoneCellName = CreateCell("Phone :", formatFirstCell)
             Dim phoneCellLocation = CreateCell("+ 1 (213) 555-2828", formatSecondCell)
-            e.ExportContext.AddRow({phoneCellName, Nothing, phoneCellLocation})
+            e.ExportContext.AddRow({ phoneCellName, Nothing, phoneCellLocation })
         End Sub
         Private Shared Sub AddAddressLocationCityRow(ByVal e As ContextEventArgs, ByVal formatFirstCell As XlFormattingObject, ByVal formatSecondCell As XlFormattingObject)
             Dim AddressLocationCityCell = CreateCell("Los Angeles CA 90731 USA", formatSecondCell)
-            e.ExportContext.AddRow({Nothing, Nothing, AddressLocationCityCell})
+            e.ExportContext.AddRow({ Nothing, Nothing, AddressLocationCityCell })
         End Sub
         Private Shared Sub AddAddressRow(ByVal e As ContextEventArgs, ByVal formatFirstCell As XlFormattingObject, ByVal formatSecondCell As XlFormattingObject)
             Dim AddressCellName = CreateCell("Address: ", formatFirstCell)
             Dim AddresssCellLocation = CreateCell("807 West Paseo Del Mar", formatSecondCell)
-            e.ExportContext.AddRow({AddressCellName, Nothing, AddresssCellLocation})
+            e.ExportContext.AddRow({ AddressCellName, Nothing, AddresssCellLocation })
         End Sub
 
         ' Create a new cell with a specified value and format settings.
@@ -179,15 +168,15 @@ Namespace GridDataAwareExportCustomization
 
         ' Specify a cell's alignment and font settings. 
         Private Shared Function CreateXlFormattingObject(ByVal bold As Boolean, ByVal size As Double) As XlFormattingObject
-            Dim cellFormat = New XlFormattingObject With {
-                .Font = New XlCellFont With {.Bold = bold, .Size = size},
-                .Alignment = New XlCellAlignment With {.RelativeIndent = 10, .HorizontalAlignment = XlHorizontalAlignment.Center, .VerticalAlignment = XlVerticalAlignment.Center}
+            Dim cellFormat = New XlFormattingObject With { _
+                .Font = New XlCellFont With {.Bold = bold, .Size = size}, _
+                .Alignment = New XlCellAlignment With {.RelativeIndent = 10, .HorizontalAlignment = XlHorizontalAlignment.Center, .VerticalAlignment = XlVerticalAlignment.Center} _
             }
             Return cellFormat
         End Function
-#End Region ' #CustomizeSheetHeaderEvent
+        #End Region ' #CustomizeSheetHeaderEvent
 
-#Region "#CustomizeSheetFooterEvent"
+        #Region "#CustomizeSheetFooterEvent"
         Private Sub options_CustomizeSheetFooter(ByVal e As ContextEventArgs)
             ' Add an empty row to the document's footer.
             e.ExportContext.AddRow()
@@ -201,7 +190,7 @@ Namespace GridDataAwareExportCustomization
             rowFormatting.Alignment.HorizontalAlignment = XlHorizontalAlignment.Left
             firstRow.Formatting = rowFormatting
             ' Add the created row to the output document. 
-            e.ExportContext.AddRow({firstRow})
+            e.ExportContext.AddRow({ firstRow })
 
             ' Create one more row.
             Dim secondRow = New CellObject()
@@ -213,11 +202,11 @@ Namespace GridDataAwareExportCustomization
             rowFormatting.Font.Italic = True
             secondRow.Formatting = rowFormatting
             ' Add this row to the output document.
-            e.ExportContext.AddRow({secondRow})
+            e.ExportContext.AddRow({ secondRow })
         End Sub
-#End Region ' #CustomizeSheetFooterEvent
+        #End Region ' #CustomizeSheetFooterEvent
 
-#Region "#CustomizeSheetSettingsEvent"
+        #Region "#CustomizeSheetSettingsEvent"
         Private Sub options_CustomizeSheetSettings(ByVal e As CustomizeSheetEventArgs)
             ' Anchor the output document's header to the top and set its fixed height. 
             Const lastHeaderRowIndex As Integer = 15
@@ -225,17 +214,14 @@ Namespace GridDataAwareExportCustomization
             ' Add the AutoFilter button to the document's cells corresponding to the grid column headers.
             e.ExportContext.AddAutoFilter(New XlCellRange(New XlCellPosition(0, lastHeaderRowIndex), New XlCellPosition(5, 100)))
         End Sub
-#End Region ' #CustomizeSheetSettingsEvent
+        #End Region ' #CustomizeSheetSettingsEvent
 
         Private Sub InitMDBData(ByVal connectionString As String)
-            Using oleDBAdapter1 = New OleDbDataAdapter("SELECT * FROM " & tblGrid, connectionString)
-                oleDBAdapter1.Fill(nwindDataSet.Products)
-            End Using
-            Using oleDBAdapter2 = New OleDbDataAdapter("SELECT * FROM " & tblLookUp, connectionString)
-                oleDBAdapter2.Fill(nwindDataSet.Categories)
-            End Using
+            Dim oleDBAdapter1 = New System.Data.OleDb.OleDbDataAdapter("SELECT * FROM " & tblGrid, connectionString)
+            Dim oleDBAdapter2 = New System.Data.OleDb.OleDbDataAdapter("SELECT * FROM " & tblLookUp, connectionString)
+            oleDBAdapter1.Fill(nwindDataSet.Products)
+            oleDBAdapter2.Fill(nwindDataSet.Categories)
         End Sub
-
 
         Private Sub InitNWindData()
             Dim dbFileName = String.Empty
