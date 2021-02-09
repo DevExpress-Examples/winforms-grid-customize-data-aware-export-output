@@ -16,6 +16,11 @@
 
 For more information, see <a href="https://docs.devexpress.com/WindowsForms/17733/controls-and-libraries/data-grid/export-and-printing/export-to-xls-and-xlsx-formats">Export to XLS and XLSX Formats</a>.
 
+
+<b>See also:</b>
+
+[DevExpress WinForms Troubleshooting - Grid Control](https://go.devexpress.com/CheatSheets_WinForms_Examples_T934742.aspx)
+
 <br/>
 
 
